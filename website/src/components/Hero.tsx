@@ -5,6 +5,9 @@ export function Hero() {
   const hasPaper = paper.links.paper.length > 0;
   return (
     <header className="hero">
+      <p className="hero__meta">
+        {paper.venue} · {paper.date}
+      </p>
       <h1 className="hero__title">{paper.title}</h1>
       <p className="hero__authors">
         {paper.authors.map((a, i) => (
@@ -29,9 +32,6 @@ export function Hero() {
       <p className="hero__equal">
         <sup>*</sup>
         {paper.equalNote}
-      </p>
-      <p className="hero__meta">
-        {paper.venue}, {paper.date}
       </p>
       <nav className="hero__links" aria-label="Paper resources">
         {hasPaper ? (

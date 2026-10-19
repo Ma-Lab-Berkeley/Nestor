@@ -3,10 +3,10 @@
 The paper's website, served by GitHub Pages at
 <https://ma-lab-berkeley.github.io/Nestor/>. A static Vite + React +
 TypeScript site laid out as a long-form article: a centred serif text column,
-a sticky table of contents on wide screens, figures and tables slightly wider
-than the text, equations set with [KaTeX](https://katex.org) in the paper's
-notation (`src/components/Math.tsx` holds the macros), and an SVG walkthrough
-of the architecture driven by [`motion`](https://motion.dev). Colours follow
+a sticky table of contents on wide screens, figures slightly wider than the
+text, and an SVG walkthrough of the architecture driven by
+[`motion`](https://motion.dev). It states the main results and leaves the
+details to the paper. Colours follow
 the paper's house palette (`:root` tokens in `src/styles.css`).
 
 ```bash
@@ -43,4 +43,3 @@ the page, the plots and the schematics share one palette.
 | `domain.svg` | Figure 3, domain adaptation and forgetting relative to the MoE |
 | `cpt.svg` | Figure 4, long-context extension ladder |
 | `theory.svg` | Figure 5, the linear model and the two predictors |
-| `flops.svg` | Appendix figure, FLOPs per token against context length |

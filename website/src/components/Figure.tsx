@@ -18,7 +18,7 @@ type Props = {
   eager?: boolean;
 };
 
-/** A paper figure on a white surface (the SVGs have dark ink and no background). */
+/** A paper figure. The SVGs have dark ink and no background, which is why the page is light-only. */
 export function Figure({ src, alt, number, caption, width, height, size = "breakout", maxWidth, eager = false }: Props) {
   return (
     <figure className={`figure figure--${size}`}>

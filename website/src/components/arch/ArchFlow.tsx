@@ -483,7 +483,21 @@ export function ArchFlow() {
             </span>
           ))}
         </span>
-        <span>{withSubs(status)}</span>
+        <span className="arch__text">
+          {/* Every sentence the walkthrough can show, stacked in one cell, so the box keeps the height of the longest. */}
+          {range(S).flatMap((t) =>
+            BLOCKS.flatMap((_, b) =>
+              PHASES.map((_, p) => {
+                const current = t === token && b === block && p === phaseIdx;
+                return (
+                  <span key={`${t}-${b}-${p}`} className={current ? "is-current" : undefined} aria-hidden={!current}>
+                    {withSubs(describe(b, t, columnsOf(b, t), p))}
+                  </span>
+                );
+              }),
+            ),
+          )}
+        </span>
       </p>
     </div>
   );

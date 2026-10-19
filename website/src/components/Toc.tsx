@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export type TocEntry = { id: string; label: string; depth?: 1 | 2 };
+export type TocEntry = { id: string; label: string };
 
 /**
  * The sticky table of contents on wide screens. The active entry follows the
@@ -33,7 +33,7 @@ export function Toc({ entries }: { entries: TocEntry[] }) {
     <nav className="toc" aria-label="Contents">
       <ol>
         {entries.map((e) => (
-          <li key={e.id} className={`toc__item${e.depth === 2 ? " toc__item--sub" : ""}${e.id === active ? " is-active" : ""}`}>
+          <li key={e.id} className={`toc__item${e.id === active ? " is-active" : ""}`}>
             <a href={`#${e.id}`}>{e.label}</a>
           </li>
         ))}
