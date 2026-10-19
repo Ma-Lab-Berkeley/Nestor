@@ -35,14 +35,6 @@ export const paper = {
 }`,
 } as const;
 
-/** The headline numbers of the paper, one tile each. */
-export const stats = [
-  { value: "1.13–1.29×", label: "compute the MoE transformer needs to match Nestor's loss, at equal stored parameters" },
-  { value: "3.1–4.1×", label: "compute the dense transformer needs to match Nestor's loss" },
-  { value: "3% less", label: "forgetting than the MoE on new domains, at equal gains; the dense model forgets 21% more" },
-  { value: "4k → 64k", label: "Nestor's lead over the MoE grows with the context length at equal FLOPs" },
-] as const;
-
 /** Entries of the table of contents, in page order. */
 export const toc = [
   { id: "abstract", label: "Abstract" },

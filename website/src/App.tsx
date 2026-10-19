@@ -1,7 +1,6 @@
 import { paper, quickstart, toc } from "./content/paper";
 import { eq } from "./content/equations";
 import { Hero } from "./components/Hero";
-import { Stats } from "./components/Stats";
 import { Section } from "./components/Section";
 import { Figure } from "./components/Figure";
 import { ResultsTable } from "./components/ResultsTable";
@@ -53,7 +52,6 @@ export function App() {
               </>
             }
           />
-          <Stats />
         </div>
 
         <div className="layout">
