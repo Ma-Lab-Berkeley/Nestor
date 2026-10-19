@@ -22,8 +22,8 @@ source once (Settings → Pages), which the workflow also attempts itself.
 
 ## Favicon
 
-`public/favicon.svg` is the mark: one block of four columns on a purple tile, the
-token's two active columns drawn as stacks of layers. `favicon-32.png` and the
+`public/favicon.svg` is the mark: a geometric N on the house-purple tile, its right
+stem drawn as a stack of three layers. `favicon-32.png` and the
 full-bleed `apple-touch-icon.png` are rasterised from it (headless Chrome).
 
 ## Figures
