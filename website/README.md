@@ -20,6 +20,12 @@ pnpm preview    # serve dist/ the way Pages will
 to `main` that touches `website/`. Pages must be set to the "GitHub Actions"
 source once (Settings → Pages), which the workflow also attempts itself.
 
+## Favicon
+
+`public/favicon.svg` is the mark: one block of four columns on a purple tile, the
+token's two active columns drawn as stacks of layers. `favicon-32.png` and the
+full-bleed `apple-touch-icon.png` are rasterised from it (headless Chrome).
+
 ## Figures
 
 `public/figures/*.svg` are the paper's own figures, compiled from the
