@@ -10,7 +10,6 @@ export const affiliations: Affiliation[] = [
 export const paper = {
   title: "Nested Sparsity for Scalable Pretraining and Continual Learning",
   shortName: "Nestor",
-  tagline: "Conditional computation for the attention operator that nests with mixture-of-experts sparsity.",
   venue: "Preprint",
   date: "2026",
   authors: [

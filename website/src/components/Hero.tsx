@@ -6,7 +6,6 @@ export function Hero() {
   return (
     <header className="hero">
       <h1 className="hero__title">{paper.title}</h1>
-      <p className="hero__tagline">{paper.tagline}</p>
       <p className="hero__authors">
         {paper.authors.map((a, i) => (
           <span key={a.name} className="author">

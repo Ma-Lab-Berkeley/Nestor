@@ -198,13 +198,7 @@ sup {
 .hero__title {
   font-size: clamp(1.8rem, 3.2vw, 2.3rem);
   max-width: 36ch;
-  margin: 0 auto 1rem;
-}
-.hero__tagline {
-  font-size: 1.1rem;
-  color: var(--ink-2);
-  max-width: 44rem;
-  margin: 0 auto 1.6rem;
+  margin: 0 auto 1.5rem;
 }
 .hero__authors {
   font-size: 1.08rem;
