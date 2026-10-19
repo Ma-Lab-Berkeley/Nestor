@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nestor: Nested Sparsity for Scalable Pretraining and Continual Learning</title>
+    <meta
+      name="description"
+      content="Nestor is a nested sparse transformer: a router sends each token to a few attention columns, each with its own attention and experts. It is more compute-efficient than MoE and dense transformers in pretraining and continual pretraining."
+    />
+    <meta property="og:title" content="Nestor: Nested Sparsity for Scalable Pretraining and Continual Learning" />
+    <meta
+      property="og:description"
+      content="Conditional computation for the attention operator that nests with mixture-of-experts sparsity. 1.13–1.29× more compute-efficient than MoE, 3.1–4.1× more than dense, at 100M–1B active parameters."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://ma-lab-berkeley.github.io/Nestor/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/Nestor/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

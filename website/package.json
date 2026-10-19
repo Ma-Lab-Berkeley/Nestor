@@ -1,0 +1,29 @@
+{
+  "name": "nestor-website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Project page for Nestor: Nested Sparsity for Scalable Pretraining and Continual Learning",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "katex": "^0.19.0",
+    "motion": "^14.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

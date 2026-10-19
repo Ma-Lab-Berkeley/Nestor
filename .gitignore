@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info/
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# Secrets and local environment
+.env
+
+# Run artifacts
+outputs/
+logs/
+wandb/
+data/
+*.out
+*.err
+.DS_Store
+
+# Website (website/)
+node_modules/
