@@ -11,11 +11,11 @@ dist/
 # Secrets and local environment
 .env
 
-# Run artifacts
-outputs/
-logs/
-wandb/
-data/
+# Run artifacts (anchored to the repository root: nestor/data/ is a package)
+/outputs/
+/logs/
+/wandb/
+/data/
 *.out
 *.err
 .DS_Store

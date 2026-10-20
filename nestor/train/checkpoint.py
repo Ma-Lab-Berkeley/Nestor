@@ -36,6 +36,76 @@ def get_git_sha() -> str | None:
         return None
 
 
+#: The 200m dense and MoE checkpoints trained under the research code declared
+#: their expert bank as the group-specific experts of the single attention
+#: group; the registry now declares the same bank as shared experts. The
+#: modules, shapes and forward are identical, only the parameter names differ.
+_LEGACY_BANK_PREFIX = "group_specific_experts.0."
+_BANK_PREFIX = "shared_experts."
+
+
+def remap_legacy_bank_keys(state: dict[str, Any], model_keys: set[str]) -> dict[str, Any]:
+    """Rename a legacy checkpoint's group-specific expert keys to the shared-bank names.
+
+    Args:
+        state (dict[str, Any]): Checkpoint state dict.
+        model_keys (set[str]): Keys of the rebuilt model's state dict.
+
+    Returns:
+        dict[str, Any]: ``state`` with every ``group_specific_experts.0.`` key
+        that the model lacks renamed to its ``shared_experts.`` counterpart
+        (when the model has that one); other entries are untouched.
+    """
+
+    out: dict[str, Any] = {}
+    for key, value in state.items():
+        if _LEGACY_BANK_PREFIX in key and key not in model_keys:
+            candidate = key.replace(_LEGACY_BANK_PREFIX, _BANK_PREFIX)
+            if candidate in model_keys:
+                key = candidate
+        out[key] = value
+    return out
+
+
+def load_init_state(
+    model: nn.Module,
+    ckpt_state: dict[str, Any],
+    *,
+    allow_partial: bool = False,
+) -> tuple[int, set[str]]:
+    """Initialise ``model`` from another run's weights (the non-strict init load).
+
+    The continued-training path (``DCLM_INIT_CHECKPOINT``: a fresh optimizer
+    and schedule over pretrained weights, possibly at another context length).
+    Legacy bank names are remapped first (:func:`remap_legacy_bank_keys`), then
+    :func:`filter_init_state` keeps the entries whose name and shape match.
+
+    Args:
+        model (nn.Module): The unwrapped model.
+        ckpt_state (dict[str, Any]): The checkpoint's ``model`` state dict.
+        allow_partial (bool): Tolerate parameters the checkpoint does not cover.
+
+    Returns:
+        tuple[int, set[str]]: The number of entries loaded and the checkpoint
+            keys skipped (name unknown or shape mismatch).
+
+    Raises:
+        RuntimeError: When a parameter would stay uninitialised and
+            ``allow_partial`` is False (see :func:`filter_init_state`).
+    """
+
+    current_state = model.state_dict()
+    remapped = remap_legacy_bank_keys(ckpt_state, set(current_state))
+    filtered, skipped = filter_init_state(
+        remapped,
+        current_state,
+        set(dict(model.named_parameters())),
+        allow_partial=allow_partial,
+    )
+    model.load_state_dict(filtered, strict=False)
+    return len(filtered), skipped
+
+
 def filter_init_state(
     ckpt_state: dict[str, Any],
     current_state: dict[str, Any],

@@ -47,29 +47,7 @@ export DCLM_GLOBAL_BATCH="${DCLM_GLOBAL_BATCH:-$(( NPROC_PER_NODE * PER_RANK ))}
 export DCLM_GRAD_ACCUM="${DCLM_GRAD_ACCUM:-$(( TOKENS_PER_STEP / (DCLM_GLOBAL_BATCH * 4096) ))}"
 
 # --- the speed stack every paper run trained with (all exact reformulations)
-export NESTOR_DDP=1                    # DDP, not FSDP: every model fits on one GPU
-export NESTOR_COMPILE=1                # torch.compile, fullgraph=False
-export NESTOR_BF16=1                   # bf16 autocast, no GradScaler
-export NESTOR_DENSE_NO_ROUTER=1        # skip + freeze the gate-1.0 routers of dense blocks
-export NESTOR_RUNAHEAD=0
-export NESTOR_DDP_BROADCAST_BUFFERS=1  # loss-free balancing biases are synced every step
-export NESTOR_DDP_STATIC_GRAPH=0
-export NESTOR_GATHERED_CAUSAL_FLASH=1
-export NESTOR_GATHERED_VARLEN=1
-export NESTOR_MOE_GROUPED_MM=1         # grouped-GEMM expert dispatch
-export NESTOR_CE_CHUNK_ROWS="${NESTOR_CE_CHUNK_ROWS:-4096}"
-export NESTOR_COLUMN_SLOT_UPDATES=1
-export NESTOR_DENSE_TAIL_ATTN=1
-export NESTOR_GROUPED_MM_FUSED_GATE=1
-export NESTOR_ATTN_PACKED_VARLEN=1     # layer-packed varlen attention for the column blocks
-export NESTOR_DDP_NO_SYNC=1            # one gradient all-reduce per optimizer step
-export NESTOR_MUON_SHARD=1             # Muon momentum sharded across ranks
-export NESTOR_STACKED_EXPERT_BANKS=1   # fresh runs only: changes the parameter layout
-export NESTOR_BATCHED_ROUTERS=1
-# Triton kernels for the packed column path (need triton; harmless on dense arms).
-export NESTOR_TRITON_PACKED_ATTN="${NESTOR_TRITON_PACKED_ATTN:-1}"
-export NESTOR_TRITON_INDEX_BUILD="${NESTOR_TRITON_INDEX_BUILD:-1}"
-export NESTOR_TRITON_EXPERT_DISPATCH="${NESTOR_TRITON_EXPERT_DISPATCH:-1}"
+source scripts/lib/speed_stack.sh
 
 export DCLM_DATA_PATH="${DCLM_DATA_PATH:?set DCLM_DATA_PATH=path/to/tokens.bin}"
 export NESTOR_OUTPUT_ROOT="${NESTOR_OUTPUT_ROOT:-${WORK_DIR}/outputs}"

@@ -18,6 +18,7 @@ from nestor.backbones import Backbone, ModelOutput
 from nestor.configs.jobs import TrainJobConfig
 from nestor.train.activation_offload import activation_offload
 from nestor.train.checkpoint import load_checkpoint, save_checkpoint
+from nestor.train.frozen_routers import freeze_routers_enabled, hold_routing_in_eval_mode
 from nestor.train.losses import Loss, LossOutput
 from nestor.train.optim import build_optimizer, build_scheduler
 from nestor.utils.batches import split_supervised_batch
@@ -130,8 +131,10 @@ class Trainer:
         )
         # Detached router-bias updates (loss-free balancing) need the aux merged
         # and walked every step; when no router balances, skip that work in the
-        # hot loop entirely.
-        self._needs_detached_updates = any(
+        # hot loop entirely. Frozen routers (NESTOR_FREEZE_ROUTERS=1, the
+        # domain-adaptation recipe) keep every router fixed: no bias nudges either.
+        self._freeze_routers = freeze_routers_enabled()
+        self._needs_detached_updates = not self._freeze_routers and any(
             bool(getattr(module, "loss_free_balancing", False))
             for module in model.modules()
         )
@@ -221,26 +224,25 @@ class Trainer:
                 weights_only=False,
             )
             ckpt_state = checkpoint["model"]
-            from nestor.train.checkpoint import _unwrap_compiled, filter_init_state
+            from nestor.train.checkpoint import _unwrap_compiled, load_init_state
 
             base_model = _unwrap_compiled(self.model)
             # Refuses to leave any parameter at random init (a stacked-bank
             # file into an unstacked model, or vice versa); DCLM_INIT_ALLOW_PARTIAL=1
-            # opts out for a deliberately new module.
-            filtered, skipped = filter_init_state(
+            # opts out for a deliberately new module. Legacy bank names are
+            # remapped on the way in.
+            loaded, skipped = load_init_state(
+                base_model,
                 ckpt_state,
-                base_model.state_dict(),
-                set(dict(base_model.named_parameters())),
                 allow_partial=os.environ.get("DCLM_INIT_ALLOW_PARTIAL", "0") == "1",
             )
-            base_model.load_state_dict(filtered, strict=False)
             if skipped:
                 self.logger.info(
                     f"Skipped {len(skipped)} checkpoint keys "
                     f"(shape mismatch or missing): {skipped}"
                 )
             self.logger.info(
-                f"Loaded {len(filtered)}/{len(ckpt_state)} weights (non-strict); "
+                f"Loaded {loaded}/{len(ckpt_state)} weights (non-strict); "
                 "optimizer/scheduler/step reset to initial state"
             )
 
@@ -696,6 +698,8 @@ class Trainer:
             register_extra_flop_formulas()
 
             calib_model.train()
+            if self._freeze_routers:
+                hold_routing_in_eval_mode(calib_model)
             self.optimizer.zero_grad(set_to_none=True)
             counter = FlopCounterMode(display=False)
             try:
@@ -1124,9 +1128,23 @@ class Trainer:
         return merged_aux
 
     def _enter_train_mode(self) -> None:
-        """Switch the model to train mode (an eval-suite round trip calls this)."""
+        """Switch the model to train mode (an eval-suite round trip calls this).
+
+        Under ``NESTOR_FREEZE_ROUTERS=1`` the routing modules go back to eval
+        mode (no exploration noise; deterministic selections) after every
+        switch to train mode, so an eval-suite round trip never re-enables them.
+        """
 
         self.model.train()
+        if self._freeze_routers:
+            switched = hold_routing_in_eval_mode(self.model)
+            if not getattr(self, "_frozen_routers_logged", False):
+                self._frozen_routers_logged = True
+                self.logger.info(
+                    "[frozen routers] %d routing modules held in eval mode "
+                    "(router noise off, loss-free bias updates off)",
+                    switched,
+                )
 
     def _update_detached_parameters(self, model_aux: dict[str, Any]) -> None:
         """Update detached model state after the optimizer step.

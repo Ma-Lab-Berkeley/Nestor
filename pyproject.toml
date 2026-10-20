@@ -16,6 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.4.2", "ruff>=0.14.8"]
+# Downloading and reading the released corpora of the domain-adaptation experiments
+# (scripts/slurm_prep_domain_data.sh, scripts/preprocess_text_bin.py).
+data = ["pyarrow>=15.0", "huggingface_hub>=0.34"]
 
 [project.scripts]
 nestor_cli = "nestor.cli:main"

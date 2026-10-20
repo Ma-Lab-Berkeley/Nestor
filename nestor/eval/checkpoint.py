@@ -18,6 +18,9 @@ import nestor.experiments.pretrain  # noqa: F401  (triggers @register_experiment
 from nestor.backbones.expert_bank_stack import consolidate_stacked_expert_banks
 from nestor.experiments.registry import get_experiment
 from nestor.models import Model
+from nestor.train.checkpoint import remap_legacy_bank_keys
+
+__all__ = ["load_experiment_checkpoint", "remap_legacy_bank_keys"]
 
 #: Key fragments only a stacked-expert-bank run writes (see
 #: :class:`~nestor.backbones.expert_bank_stack.StackedExpertBank`).
@@ -26,35 +29,6 @@ _STACKED_BANK_MARKERS = (
     "stacked_public.w_",
     "stacked_moe_bank.w_",
 )
-#: The 200m dense and MoE checkpoints on record declared their expert bank as
-#: the group-specific experts of the single attention group; the registry now
-#: declares the same bank as shared experts. The modules, shapes and forward
-#: are identical, only the parameter names differ.
-_LEGACY_BANK_PREFIX = "group_specific_experts.0."
-_BANK_PREFIX = "shared_experts."
-
-
-def remap_legacy_bank_keys(state: dict[str, Any], model_keys: set[str]) -> dict[str, Any]:
-    """Rename a legacy checkpoint's group-specific expert keys to the shared-bank names.
-
-    Args:
-        state (dict[str, Any]): Checkpoint state dict.
-        model_keys (set[str]): Keys of the rebuilt model's state dict.
-
-    Returns:
-        dict[str, Any]: ``state`` with every ``group_specific_experts.0.`` key
-        that the model lacks renamed to its ``shared_experts.`` counterpart
-        (when the model has that one); other entries are untouched.
-    """
-
-    out: dict[str, Any] = {}
-    for key, value in state.items():
-        if _LEGACY_BANK_PREFIX in key and key not in model_keys:
-            candidate = key.replace(_LEGACY_BANK_PREFIX, _BANK_PREFIX)
-            if candidate in model_keys:
-                key = candidate
-        out[key] = value
-    return out
 
 
 def load_experiment_checkpoint(

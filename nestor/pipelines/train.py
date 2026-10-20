@@ -321,6 +321,18 @@ class TrainPipeline(BasePipeline):
                 "[PERF] bf16-master mode: %d Muon parameters stored as bf16 "
                 "leaves (fp32 masters sharded by the optimizer)", len(converted),
             )
+        # NESTOR_FREEZE_ROUTERS=1 (the domain-adaptation recipe of the sparse
+        # models): freeze the router score networks BEFORE the wrap -- DDP
+        # registers only the parameters that require gradients at wrap time.
+        from nestor.train.frozen_routers import freeze_routers, freeze_routers_enabled
+
+        if freeze_routers_enabled():
+            report = freeze_routers(base_model)
+            self.logger.info("[frozen routers] %s", report.describe())
+            self.logger.info(
+                "[frozen routers] first frozen: %s ... last: %s",
+                report.frozen_names[0], report.frozen_names[-1],
+            )
         # NESTOR_DISABLE_FSDP=1 skips every distributed wrapper (single-process
         # debugging; FSDP2 also blocks inductor CUDA graphs).
         if os.environ.get("NESTOR_DISABLE_FSDP") == "1":
