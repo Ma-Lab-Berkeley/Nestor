@@ -1,12 +1,20 @@
-# Nestor
+<h1 align="center">Nestor</h1>
 
-**Nested Sparsity for Scalable Pretraining and Continual Learning**
+<p align="center"><b>Nested Sparsity for Scalable Pretraining and Continual Learning</b></p>
 
-[Tianzhe Chu](https://github.com/LeslieTrue)\*<sup>1</sup> · Druv Pai\*<sup>2</sup> · Yi Ma<sup>1,2</sup>
+<p align="center">
+  <a href="https://github.com/LeslieTrue">Tianzhe Chu</a>*<sup>1</sup> &middot;
+  <a href="https://druvpai.github.io/">Druv Pai</a>*<sup>2</sup> &middot;
+  <a href="https://people.eecs.berkeley.edu/~yima/">Yi Ma</a><sup>1,2</sup>
+</p>
 
-<sup>1</sup>The University of Hong Kong · <sup>2</sup>University of California, Berkeley · \*Equal contribution
+<p align="center">
+  <sup>1</sup>The University of Hong Kong &middot; <sup>2</sup>University of California, Berkeley &middot; *Equal contribution
+</p>
 
-[Project page](https://ma-lab-berkeley.github.io/Nestor/)
+<p align="center">
+  <a href="https://ma-lab-berkeley.github.io/Nestor/">Project page</a>
+</p>
 
 <p align="center">
   <img src="website/public/figures/arch.svg" alt="Nestor architecture" width="720">
