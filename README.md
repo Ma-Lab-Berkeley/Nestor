@@ -1,5 +1,3 @@
-<h1 align="center">Nestor</h1>
-
 <p align="center"><b>Nested Sparsity for Scalable Pretraining and Continual Learning</b></p>
 
 <p align="center">
