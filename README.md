@@ -45,6 +45,13 @@ uv run python scripts/preprocess_dclm.py --dclm-root /data/dclm-baseline-1.0 \
     --out data/dclm/dclm_val.bin --target-tokens 20_000_000 --global-shards 9
 ```
 
+Training on the 11B-token corpus above may give slightly different performance
+from the paper. Exact reproduction of the paper's data order requires sampling
+from the full 105B-token corpus: change the training preprocessing argument to
+`--target-tokens 105_000_000_000`, using the same DCLM source shards. The existing
+training sampler shuffles windows from that corpus automatically; keep the
+training budget and validation preprocessing arguments unchanged.
+
 ## Train
 
 On one 8-GPU node:
