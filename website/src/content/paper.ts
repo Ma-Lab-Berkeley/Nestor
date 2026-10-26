@@ -19,15 +19,15 @@ export const paper = {
   ],
   equalNote: "Equal contribution; ordered alphabetically.",
   links: {
-    /** Set when the PDF is public; an empty string renders the button as "coming soon". */
-    paper: "",
+    /** An empty string renders the button as "coming soon". */
+    paper: "https://arxiv.org/abs/2610.31818",
     code: "https://github.com/Ma-Lab-Berkeley/Nestor",
   },
-  bibtex: `@article{chu2026nestor,
-  title   = {Nested Sparsity for Scalable Pretraining and Continual Learning},
-  author  = {Chu, Tianzhe and Pai, Druv and Ma, Yi},
-  year    = {2026},
-  note    = {Preprint}
+  bibtex: `@article{chu2026nested,
+  title={Nested sparsity for scalable pretraining and continual learning},
+  author={Chu, Tianzhe and Pai, Druv and Ma, Yi},
+  journal={arXiv preprint arXiv:2610.31818},
+  year={2026}
 }`,
 } as const;
 

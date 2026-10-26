@@ -11,7 +11,12 @@
 </p>
 
 <p align="center">
-  <a href="https://ma-lab-berkeley.github.io/Nestor/">Project page</a>
+  <a href="https://arxiv.org/abs/2610.31818" target="_blank">
+    <img alt="arXiv" src="https://img.shields.io/badge/arXiv-Nestor-red?logo=arxiv" height="25" />
+  </a>
+  <a href="https://ma-lab-berkeley.github.io/Nestor/" target="_blank">
+    <img alt="Website" src="https://img.shields.io/badge/🌎_Website-ma--lab--berkeley.github.io-blue.svg" height="25" />
+  </a>
 </p>
 
 <p align="center">
@@ -84,10 +89,10 @@ uv run pytest tests -q
 ## Citation
 
 ```bibtex
-@article{chu2026nestor,
-  title   = {Nested Sparsity for Scalable Pretraining and Continual Learning},
-  author  = {Chu, Tianzhe and Pai, Druv and Ma, Yi},
-  year    = {2026},
-  note    = {Preprint}
+@article{chu2026nested,
+  title={Nested sparsity for scalable pretraining and continual learning},
+  author={Chu, Tianzhe and Pai, Druv and Ma, Yi},
+  journal={arXiv preprint arXiv:2610.31818},
+  year={2026}
 }
 ```
