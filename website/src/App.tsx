@@ -314,6 +314,10 @@ export function App() {
             <Section id="bibtex" title="Citation">
               <BibTeX />
             </Section>
+
+            <Section id="acknowledgements" title="Acknowledgements">
+              <p>We gratefully acknowledge the HKU Shanghai ICRC for providing computational resources.</p>
+            </Section>
           </article>
         </div>
       </main>

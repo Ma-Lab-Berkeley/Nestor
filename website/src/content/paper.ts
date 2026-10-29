@@ -41,6 +41,7 @@ export const toc = [
   { id: "theory", label: "Theory" },
   { id: "code", label: "Code" },
   { id: "bibtex", label: "Citation" },
+  { id: "acknowledgements", label: "Acknowledgements" },
 ];
 
 /** The twelve experiments shipped in the repository's registry. */
