@@ -61,10 +61,31 @@ On one 8-GPU node:
 
 ```bash
 DCLM_DATA_PATH=data/dclm/dclm_train.bin sbatch scripts/slurm_pretrain.sh nestor_200m
-# or directly
-DCLM_DATA_PATH=data/dclm/dclm_train.bin NESTOR_DDP=1 NESTOR_BF16=1 NESTOR_COMPILE=1 \
+```
+
+Or launch directly from the repository root with the same speed stack and
+batch shape (4 sequences per GPU, 4 accumulation steps):
+
+```bash
+source scripts/lib/speed_stack.sh
+DCLM_DATA_PATH=data/dclm/dclm_train.bin DCLM_GLOBAL_BATCH=32 DCLM_GRAD_ACCUM=4 \
   uv run torchrun --standalone --nproc_per_node=8 -m nestor.cli --experiment nestor_200m
 ```
+
+[`scripts/lib/speed_stack.sh`](scripts/lib/speed_stack.sh) enables BF16,
+`torch.compile`, packed variable-length attention, grouped expert GEMMs,
+batched routers, and the custom Triton attention and expert-dispatch kernels
+on supported configurations. Setting `NESTOR_COMPILE=1` alone does not enable
+these fast paths. Source the script before starting Python; many flags are
+read when modules are imported or the model is constructed. Existing
+environment overrides are preserved.
+
+For a fresh run, use the script's defaults. When resuming or initializing from
+a checkpoint, keep `NESTOR_STACKED_EXPERT_BANKS` and `NESTOR_DENSE_NO_ROUTER`
+consistent with the original run: they change the model's parameter layout.
+Set any overrides before sourcing the speed stack. The long-context extension
+and adaptation launchers select their own memory settings, including disabling
+some Triton paths by default.
 
 Resubmitting an experiment resumes from its latest checkpoint under
 `NESTOR_OUTPUT_ROOT` (default `outputs/`). The experiment definitions are in
