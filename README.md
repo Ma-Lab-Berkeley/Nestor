@@ -87,6 +87,33 @@ Set any overrides before sourcing the speed stack. The long-context extension
 and adaptation launchers select their own memory settings, including disabling
 some Triton paths by default.
 
+### One GPU
+
+```bash
+NPROC_PER_NODE=1 DCLM_DATA_PATH=data/dclm/dclm_train.bin \
+  sbatch --gpus-per-node=1 --cpus-per-task=12 --mem=200G scripts/slurm_pretrain.sh nestor_100m
+```
+
+A one-GPU launch trains the bare model (no `DistributedDataParallel` wrapper
+around a single rank) and turns on `NESTOR_STREAMED_HEAD_CE=1`, which computes
+the vocabulary head and its cross-entropy one row chunk at a time inside the
+loss, so the `[tokens, vocab]` logits are never stored. The 100M models also
+use micro-batches of 8 sequences per GPU instead of 4 (`PER_RANK`, at any GPU
+count). Together these take a `nestor_100m` update (262,144 tokens) on one
+H200 from 4.11 s to 2.60 s;
+[`scripts/bench_single_gpu.sh`](scripts/bench_single_gpu.sh) measures each
+step of that ladder in one job. The tunings follow Deepak Singh's
+[Latch write-up](https://deepaksingh98.github.io/latch/site/nestor.html) on
+this code.
+
+`PER_RANK` trades memory for speed at every size: on four H200s,
+`nestor_200m` with `PER_RANK=8 NESTOR_STREAMED_HEAD_CE=1` is about 1.3x faster
+than the default shape and peaks at 69 GiB per GPU. At a fixed batch shape
+under multi-GPU DDP the streamed head saves memory (51 GiB to 42 GiB per GPU
+for `nestor_200m`) without a speed gain, so it is off by default there.
+`NESTOR_GC_FREEZE=1` (a `gc.freeze()` after the first step) is an opt-in: its
+effect on step time was within measurement noise.
+
 Resubmitting an experiment resumes from its latest checkpoint under
 `NESTOR_OUTPUT_ROOT` (default `outputs/`). The experiment definitions are in
 `nestor/experiments/pretrain.py`; the continued-training launchers

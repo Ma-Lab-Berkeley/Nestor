@@ -344,6 +344,13 @@ class TrainPipeline(BasePipeline):
                 self.job_config.distributed,
                 device=self.device,
             )
+            from nestor.utils.distributed import single_rank_ddp_skipped
+
+            if self.job_config.distributed.enabled and single_rank_ddp_skipped():
+                self.logger.info(
+                    "[PERF] one rank: DistributedDataParallel wrapper skipped "
+                    "(NESTOR_DDP_SINGLE_RANK=1 keeps it)"
+                )
         # NESTOR_PREWARM_CAUSAL_SEQ=<S>: pre-materialize every block's lazy
         # causal-mask cache at sequence length S BEFORE any compiled forward
         # runs. Required for NESTOR_COMPILE_MODE=reduce-overhead: the lazy

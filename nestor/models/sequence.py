@@ -95,21 +95,22 @@ class SequenceModel(Model):
 
         backbone_output = self.encode(batch)
 
-        # NESTOR_FUSED_HEAD_CE=1 (train mode, grad on): skip the unembedding
-        # and hand the LOSS the hidden states plus the head module via aux.
-        # The loss projects hidden -> logits in row chunks under activation
-        # checkpointing, so the full [tokens, vocab] logits tensor -- 6.12 GiB
-        # in bf16 at the 1b arm's per-rank 8, the forward-phase allocation
-        # that OOMs that batch shape -- is never materialized. Identical math:
-        # the projection is per-token, so chunking and the loss's target shift
-        # commute with it. Eval and no-grad calls keep the real logits path,
-        # so held-out metrics and calibration probes are unchanged.
-        import os
+        # NESTOR_STREAMED_HEAD_CE=1 / NESTOR_FUSED_HEAD_CE=1 (train mode, grad
+        # on): skip the unembedding and hand the LOSS the hidden states plus
+        # the head module via aux. The loss projects hidden -> logits in row
+        # chunks (streamed in one pass, or under activation checkpointing), so
+        # the full [tokens, vocab] logits tensor -- 6.12 GiB in bf16 at the 1b
+        # arm's per-rank 8, the forward-phase allocation that OOMs that batch
+        # shape -- is never materialized. Identical math: the projection is
+        # per-token, so chunking and the loss's target shift commute with it.
+        # Eval and no-grad calls keep the real logits path, so held-out
+        # metrics and calibration probes are unchanged.
+        from nestor.train.streamed_head_ce import fused_head_mode
 
         if (
             self.training
             and torch.is_grad_enabled()
-            and os.environ.get("NESTOR_FUSED_HEAD_CE") == "1"
+            and fused_head_mode() is not None
         ):
             aux = dict(backbone_output.aux)
             aux["fused_head_module"] = self.head

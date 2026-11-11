@@ -77,6 +77,35 @@ def grad_sync_context(
     return ddp.no_sync()
 
 
+def freeze_gc() -> int:
+    """Move every object alive now into the garbage collector's permanent set.
+
+    A training process holds on the order of a million long-lived container
+    objects once the first optimizer step has run (0.6M for the 200M dense
+    model, 1.3M for the 100M column model): the module tree, the optimizer
+    state and, under ``torch.compile``, dynamo's guards and the FX / Inductor
+    artifacts of every compiled frame. The cyclic collector re-traverses all
+    of them on each full collection, and the hot loop keeps triggering
+    collections by allocating (and dropping) short-lived Python objects on
+    every micro-batch. ``gc.freeze()`` exempts what exists now from every
+    later collection, so a collection only walks what the loop itself
+    created. Collection stays enabled; new cyclic garbage is still reclaimed.
+
+    A full collection runs first so that garbage already pending is freed
+    rather than frozen (a frozen object is never reclaimed by the cyclic
+    collector, only by reference counting).
+
+    Returns:
+        int: Number of objects in the permanent generation after the freeze.
+    """
+
+    import gc
+
+    gc.collect()
+    gc.freeze()
+    return gc.get_freeze_count()
+
+
 class Trainer:
     """Training loop manager."""
 
@@ -484,6 +513,18 @@ class Trainer:
                         # step; sync once so it marks real GPU completion.
                         if self.device.type == "cuda":
                             torch.cuda.synchronize()
+                        # NESTOR_GC_FREEZE=1: the first step built every
+                        # long-lived object of the run (compiled frames
+                        # included); take them out of the cyclic collector's
+                        # reach before the steady clock starts.
+                        if os.environ.get("NESTOR_GC_FREEZE") == "1":
+                            frozen = freeze_gc()
+                            if is_main_process():
+                                self.logger.info(
+                                    "[PERF] gc.freeze after step 1: %d objects "
+                                    "in the permanent generation",
+                                    frozen,
+                                )
                         mfu_t_steady = _time.monotonic()
                         mfu_win_t0 = mfu_t_steady
                         mfu_win_steps = mfu_steps

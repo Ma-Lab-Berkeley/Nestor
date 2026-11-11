@@ -227,19 +227,27 @@ class CausalLMLoss(Loss):
         """
         head = (aux or {}).get("fused_head_module")
         if head is not None:
-            # Fused head+CE (NESTOR_FUSED_HEAD_CE): ``pred`` is the HIDDEN
-            # sequence, not logits. Shift first (the projection is per-token,
-            # so it commutes with the shift), then project each row chunk to
-            # logits and take its CE inside one checkpointed closure -- the
-            # full [tokens, vocab] logits tensor is never materialized, and
-            # backward recomputes one chunk's logits at a time. Head gradients
-            # flow through the loss; parameter identity is unchanged, so
-            # optimizer state and checkpoints are untouched.
+            # In-loss head (NESTOR_STREAMED_HEAD_CE / NESTOR_FUSED_HEAD_CE):
+            # ``pred`` is the HIDDEN sequence, not logits. Shift first (the
+            # projection is per-token, so it commutes with the shift), then
+            # read the loss one row chunk at a time -- the full
+            # [tokens, vocab] logits tensor is never materialized. Head
+            # gradients flow through the loss; parameter identity is
+            # unchanged, so optimizer state and checkpoints are untouched.
             import os
 
             from torch.utils.checkpoint import checkpoint
 
-            chunk_rows = int(os.environ.get("NESTOR_CE_CHUNK_ROWS", "0")) or 4096
+            from nestor.train.streamed_head_ce import (
+                DEFAULT_CHUNK_ROWS,
+                fused_head_mode,
+                streamable_projection,
+                streamed_head_ce,
+            )
+
+            chunk_rows = (
+                int(os.environ.get("NESTOR_CE_CHUNK_ROWS", "0")) or DEFAULT_CHUNK_ROWS
+            )
             hidden = pred[:, :-1, :].reshape(-1, pred.shape[-1])
             targets = target[:, 1:].reshape(-1)
             num_tokens = int((targets != PADDING_TOKEN_VALUE).sum().item())
@@ -249,27 +257,48 @@ class CausalLMLoss(Loss):
                 )
 
             smoothing = self.config.label_smoothing
-
-            def _project_ce(h: Tensor, t: Tensor) -> Tensor:
-                """Logits for one chunk, then sum-CE (recomputed in bwd)."""
-
-                logits = head.projection(h) * head.logit_multiplier
-                return F.cross_entropy(
-                    logits,
-                    t,
+            # "stream": one pass per chunk, the head differentiated by hand
+            # (nestor/train/streamed_head_ce.py). A head with hidden layers is
+            # not one linear map, so it keeps the checkpointed projection.
+            readout = (
+                streamable_projection(head) if fused_head_mode() == "stream" else None
+            )
+            if readout is not None:
+                loss_sum = streamed_head_ce(
+                    hidden,
+                    targets,
+                    readout.weight,
+                    readout.bias,
+                    logit_multiplier=head.logit_multiplier,
+                    chunk_rows=chunk_rows,
                     ignore_index=PADDING_TOKEN_VALUE,
                     label_smoothing=smoothing,
-                    reduction="sum",
                 )
+            else:
+                # "checkpoint": project each chunk and take its CE inside one
+                # checkpointed closure; backward recomputes one chunk's
+                # logits at a time.
 
-            loss_sum = hidden.new_zeros(())
-            for start in range(0, hidden.shape[0], chunk_rows):
-                loss_sum = loss_sum + checkpoint(
-                    _project_ce,
-                    hidden[start : start + chunk_rows],
-                    targets[start : start + chunk_rows],
-                    use_reentrant=False,
-                )
+                def _project_ce(h: Tensor, t: Tensor) -> Tensor:
+                    """Logits for one chunk, then sum-CE (recomputed in bwd)."""
+
+                    logits = head.projection(h) * head.logit_multiplier
+                    return F.cross_entropy(
+                        logits,
+                        t,
+                        ignore_index=PADDING_TOKEN_VALUE,
+                        label_smoothing=smoothing,
+                        reduction="sum",
+                    )
+
+                loss_sum = hidden.new_zeros(())
+                for start in range(0, hidden.shape[0], chunk_rows):
+                    loss_sum = loss_sum + checkpoint(
+                        _project_ce,
+                        hidden[start : start + chunk_rows],
+                        targets[start : start + chunk_rows],
+                        use_reentrant=False,
+                    )
         else:
             loss_sum, num_tokens = self.sum_loss_and_tokens(
                 pred,
