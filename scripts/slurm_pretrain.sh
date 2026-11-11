@@ -3,6 +3,8 @@
 #
 #   DCLM_DATA_PATH=data/dclm/dclm_train.bin sbatch scripts/slurm_pretrain.sh nestor_200m
 #   DCLM_MAX_STEPS=300 sbatch scripts/slurm_pretrain.sh dense_100m      # smoke
+#   NPROC_PER_NODE=1 sbatch --gpus-per-node=1 --cpus-per-task=12 --mem=200G \
+#       scripts/slurm_pretrain.sh nestor_100m                           # one GPU
 #
 # Tokens per optimizer step are pinned per scale (see nestor/experiments/
 # pretrain.py); PER_RANK sequences per GPU chooses how that budget is split
@@ -28,7 +30,15 @@ if [ -f .env ]; then set -a; source .env; set +a; fi
 
 EXPERIMENT="${1:?usage: slurm_pretrain.sh <experiment>}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
-PER_RANK="${PER_RANK:-4}"
+# Sequences per GPU per micro-batch; gradient accumulation makes up the rest
+# of the rung's tokens per step. These models are launch-bound, so a larger
+# micro-batch is faster per token wherever it fits. The 100M models take 8
+# (nestor_100m: 42 GiB peak). The larger ones stay at 4: nestor_200m is 1.3x
+# faster at PER_RANK=8 as well, but peaks at 69 GiB per GPU.
+case "${EXPERIMENT}" in
+    *_100m) PER_RANK="${PER_RANK:-8}" ;;
+    *)      PER_RANK="${PER_RANK:-4}" ;;
+esac
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # tiktoken caches the cl100k vocabulary here; pre-warm it on a node with internet.
@@ -46,6 +56,13 @@ esac
 export DCLM_GLOBAL_BATCH="${DCLM_GLOBAL_BATCH:-$(( NPROC_PER_NODE * PER_RANK ))}"
 export DCLM_GRAD_ACCUM="${DCLM_GRAD_ACCUM:-$(( TOKENS_PER_STEP / (DCLM_GLOBAL_BATCH * 4096) ))}"
 
+# --- one GPU: the streamed vocabulary head on top of the stack (the single
+# rank also trains without the DDP wrapper, see nestor/utils/distributed.py).
+# Priced by scripts/bench_single_gpu.sh.
+if [ "${NPROC_PER_NODE}" -eq 1 ]; then
+    export NESTOR_STREAMED_HEAD_CE="${NESTOR_STREAMED_HEAD_CE:-1}"
+fi
+
 # --- the speed stack every paper run trained with (all exact reformulations)
 source scripts/lib/speed_stack.sh
 
@@ -54,7 +71,8 @@ export NESTOR_OUTPUT_ROOT="${NESTOR_OUTPUT_ROOT:-${WORK_DIR}/outputs}"
 export WANDB_PROJECT="${WANDB_PROJECT:-nestor}"
 
 echo "[pretrain] experiment=${EXPERIMENT} data=${DCLM_DATA_PATH} gpus=${NPROC_PER_NODE} " \
-     "global_batch=${DCLM_GLOBAL_BATCH} grad_accum=${DCLM_GRAD_ACCUM}"
+     "global_batch=${DCLM_GLOBAL_BATCH} grad_accum=${DCLM_GRAD_ACCUM} " \
+     "streamed_head=${NESTOR_STREAMED_HEAD_CE} gc_freeze=${NESTOR_GC_FREEZE}"
 
 torchrun \
     --standalone \

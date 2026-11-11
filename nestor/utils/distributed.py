@@ -273,9 +273,10 @@ def is_fsdp2_model(model: nn.Module) -> bool:
 def fused_head_param_names(model: nn.Module) -> list[str]:
     """Names of the parameters DDP must leave to :func:`reduce_ignored_grads`.
 
-    Under ``NESTOR_FUSED_HEAD_CE=1`` the language-modelling head is applied
-    inside the loss (row-chunked, checkpointed) rather than in the model's
-    forward, so its parameters must not be tracked by DDP's reducer.
+    Under ``NESTOR_STREAMED_HEAD_CE=1`` or ``NESTOR_FUSED_HEAD_CE=1`` the
+    language-modelling head is applied inside the loss (row-chunked: streamed
+    or checkpointed) rather than in the model's forward, so its parameters
+    must not be tracked by DDP's reducer.
 
     Args:
         model (nn.Module): The unwrapped top-level model (a ``SequenceModel``
@@ -337,13 +338,49 @@ def reduce_ignored_grads(model: nn.Module) -> None:
         param.grad.div_(world_size)
 
 
+def single_rank_ddp_skipped() -> bool:
+    """Whether ``NESTOR_DDP=1`` leaves the model bare because there is one rank.
+
+    With a process group of one rank (``torchrun --nproc_per_node=1``) a
+    ``DistributedDataParallel`` wrapper has no peer to talk to, yet still
+    costs on every micro-batch: a grad hook per parameter that copies into the
+    reducer's buckets, an all-reduce of the full gradient with itself, a
+    buffer broadcast per forward, and -- under ``torch.compile`` -- dynamo's
+    DDP optimizer, which splits the compiled graph at the reducer's bucket
+    boundaries and so breaks up kernel fusion. The bare model computes the
+    same gradients (the mean over one rank is the rank's own gradient).
+
+    ``NESTOR_DDP_SINGLE_RANK=1`` keeps the wrapper (to A/B it, or to exercise
+    the DDP code path on one device).
+
+    The world size is read from ``torch.distributed`` itself rather than
+    through :func:`get_world_size`, which reports 1 for a process group this
+    module did not initialize.
+
+    Returns:
+        bool: True when DDP is requested, a process group of exactly one rank
+            is initialized and the wrapper is not forced.
+    """
+
+    if (
+        os.environ.get("NESTOR_DDP") != "1"
+        or os.environ.get("NESTOR_DDP_SINGLE_RANK") == "1"
+    ):
+        return False
+    return dist.is_initialized() and dist.get_world_size() == 1
+
+
 def wrap_model_for_distributed(
     model: Model,
     config: DistributedConfig,
     *,
     device: torch.device,
 ) -> nn.Module:
-    """Shard a model with FSDP2 according to the distributed configuration.
+    """Wrap a model for distributed training according to the configuration.
+
+    ``NESTOR_DDP=1`` replicates the model with ``DistributedDataParallel``
+    (left bare on a single rank, see :func:`single_rank_ddp_skipped`);
+    otherwise the model is sharded with FSDP2.
 
     Args:
         model (Model): Unwrapped top-level model.
@@ -351,8 +388,9 @@ def wrap_model_for_distributed(
         device (torch.device): Device used by the current rank.
 
     Returns:
-        nn.Module: The original model. FSDP2 shards the parameters in-place
-            via ``fully_shard(...)``.
+        nn.Module: The DDP wrapper, or the original model: bare when
+            distribution is disabled or DDP runs on one rank, otherwise
+            sharded in place by FSDP2's ``fully_shard(...)``.
     """
 
     if not config.enabled:
@@ -368,6 +406,12 @@ def wrap_model_for_distributed(
     # torch.compile's DDPOptimizer buckets cleanly (the graph is static -- the
     # MoE expert-bank guard keeps every param used every step).
     if os.environ.get("NESTOR_DDP") == "1":
+        # One rank: there is nothing to reduce or broadcast, so the wrapper is
+        # pure overhead (see :func:`single_rank_ddp_skipped`). The process
+        # group stays initialized; only the model is left bare.
+        if single_rank_ddp_skipped():
+            return model
+
         from torch.nn.parallel import DistributedDataParallel as DDP
 
         # broadcast_buffers=True (default): the Nestor routers keep load-balancing
@@ -410,18 +454,20 @@ def wrap_model_for_distributed(
         find_unused = not static_graph and (
             checkpointing or os.environ.get("NESTOR_DDP_FIND_UNUSED") == "1"
         )
-        if os.environ.get("NESTOR_FUSED_HEAD_CE") == "1":
-            # The fused head+CE runs the head projection inside the LOSS,
-            # outside DDP's forward, checkpointed once per row chunk -- so the
+        from nestor.train.streamed_head_ce import fused_head_mode
+
+        if fused_head_mode() is not None:
+            # The in-loss head (streamed or checkpointed) runs the head
+            # projection inside the LOSS, outside DDP's forward -- so the
             # head weight's grad hooks fire outside the reducer's bookkeeping
-            # and once per chunk. Both reducer modes reject that: find_unused
-            # with "Expected to mark a variable ready only once", static_graph
-            # with the reducer.cpp:1703 ``expect_autograd_hooks_`` assert. The
-            # head therefore leaves the reducer entirely and its gradients are
-            # all-reduced
-            # by hand once per optimizer step (:func:`reduce_ignored_grads`,
-            # called by the trainer before clipping) -- the mean of the
-            # accumulated local sums, exactly what DDP computes.
+            # (and, checkpointed, once per row chunk). Both reducer modes
+            # reject that: find_unused with "Expected to mark a variable ready
+            # only once", static_graph with the reducer.cpp:1703
+            # ``expect_autograd_hooks_`` assert. The head therefore leaves the
+            # reducer entirely and its gradients are all-reduced by hand once
+            # per optimizer step (:func:`reduce_ignored_grads`, called by the
+            # trainer before clipping) -- the mean of the accumulated local
+            # sums, exactly what DDP computes.
             head_params = fused_head_param_names(model)
             DDP._set_params_and_buffers_to_ignore_for_model(model, head_params)
         # bf16-master parameters (NESTOR_BF16_MASTER=1) accumulate their own fp32

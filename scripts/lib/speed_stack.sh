@@ -33,3 +33,12 @@ export NESTOR_BATCHED_ROUTERS="${NESTOR_BATCHED_ROUTERS:-1}"
 export NESTOR_TRITON_PACKED_ATTN="${NESTOR_TRITON_PACKED_ATTN:-1}"
 export NESTOR_TRITON_INDEX_BUILD="${NESTOR_TRITON_INDEX_BUILD:-1}"
 export NESTOR_TRITON_EXPERT_DISPATCH="${NESTOR_TRITON_EXPERT_DISPATCH:-1}"
+# Not part of the paper's runs, so off here (scripts/bench_single_gpu.sh
+# prices both). scripts/slurm_pretrain.sh turns the streamed head on for a
+# one-GPU launch, where it is faster and lighter; under multi-rank DDP it
+# saves memory (nestor_200m: 51 -> 42 GiB per GPU at 4 sequences) but not
+# time, so it is the opt-in for a memory-bound batch shape there.
+# gc.freeze stays opt-in everywhere: its speed effect was inside the
+# round-to-round noise.
+export NESTOR_STREAMED_HEAD_CE="${NESTOR_STREAMED_HEAD_CE:-0}"        # vocab head + CE streamed per row chunk: no [tokens, vocab] logits
+export NESTOR_GC_FREEZE="${NESTOR_GC_FREEZE:-0}"                      # gc.freeze() once the first step has built the long-lived objects
